@@ -1,0 +1,44 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "commonjs",
+    "lib": ["ES2022"],
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "moduleResolution": "node",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    
+    // 以下の設定は段階的に有効化予定
+    // 現在は動作の安定性を優先してコメントアウト
+    // TODO: コードベースの改善後に順次有効化
+    
+    // 未使用の変数・パラメータのチェック
+    "noUnusedLocals": false,          // TODO: true に変更予定
+    "noUnusedParameters": false,      // TODO: true に変更予定
+    
+    // より厳格な型チェック
+    // "noImplicitReturns": true,     // 関数の全パスで値を返すことを強制
+    // "noFallthroughCasesInSwitch": true,  // switch文でのフォールスルーを禁止
+    // "noUncheckedIndexedAccess": true,    // インデックスアクセスで undefined の可能性を考慮
+    
+    // モジュール解決の改善（ESM対応時に必要）
+    // "module": "ESNext",             // ESモジュール形式
+    // "moduleResolution": "bundler",  // バンドラー向けの解決方法
+    // "allowSyntheticDefaultImports": true,  // デフォルトインポートの許可
+    
+    // パスエイリアス（コード整理時に有効化）
+    // "baseUrl": ".",
+    // "paths": {
+    //   "@/*": ["src/*"]
+    // }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

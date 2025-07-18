@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "iiif": {
+      "command": "node",
+      "args": ["C:\\Users\\YourName\\mcp-servers\\iiif\\dist\\index.js"]
+    }
+  }
+}

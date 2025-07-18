@@ -1,0 +1,56 @@
+{
+  "name": "@c4h/iiif-mcp",
+  "version": "1.0.0",
+  "type": "commonjs",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:cli": "tsx test/cli-test.ts",
+    "test:cli:mock": "tsx test/cli-test-mock.ts",
+    "test:cli:separate": "tsx test/cli-test-separate.ts",
+    "test:cli:fixed": "tsx test/cli-test-fixed.ts",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "prepublishOnly": "npm run lint && npm run test && npm run build",
+    "version:patch": "node scripts/bump-version.js patch",
+    "version:minor": "node scripts/bump-version.js minor",
+    "version:major": "node scripts/bump-version.js major"
+  },
+  "bin": {
+    "iiif-mcp": "./dist/index.js"
+  },
+  "keywords": [
+    "mcp",
+    "iiif",
+    "model-context-protocol",
+    "claude",
+    "ai"
+  ],
+  "author": "Code for History",
+  "license": "MIT",
+  "description": "A Model Context Protocol (MCP) server for IIIF (International Image Interoperability Framework) resources",
+  "devDependencies": {
+    "@eslint/js": "^9.31.0",
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.0.14",
+    "@vitest/ui": "^3.2.4",
+    "eslint": "^9.31.0",
+    "eslint-config-prettier": "^9.1.2",
+    "express": "^5.1.0",
+    "prettier": "^3.6.2",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.37.0",
+    "vitest": "^3.2.4"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.15.1",
+    "axios": "^1.10.0"
+  },
+  "packageManager": "pnpm@10.12.4"
+}

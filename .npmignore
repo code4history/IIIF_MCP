@@ -1,0 +1,38 @@
+# Source files
+src/
+test/
+
+# Config files
+.prettierrc
+eslint.config.mjs
+tsconfig.json
+vitest.config.ts
+vite.config.ts
+
+# Development files
+*.test.ts
+*.spec.ts
+*.test.js
+*.spec.js
+
+# Documentation
+FUTURE_ENHANCEMENTS.md
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# CI/CD
+.github/
+
+# Build artifacts
+*.tsbuildinfo

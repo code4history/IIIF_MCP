@@ -1,0 +1,19 @@
+node_modules/
+# dist/ は MCP Server として配布に必要なため除外しない
+*.log
+.env
+.DS_Store
+
+# Playwright E2E test artifacts
+playwright-report/
+test-results/
+
+# pnpm
+.pnpm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
