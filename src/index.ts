@@ -3922,6 +3922,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
     case 'iiif-manifest': {
+      console.error('iiif-manifest request:', JSON.stringify(request, null, 2));
       const args = request.params.arguments || {};
       const { manifestUrl, properties, structured } = args as {
         manifestUrl?: string;
@@ -3930,6 +3931,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       };
 
       if (!manifestUrl) {
+        console.error('manifestUrl not found in args:', args);
         throw new McpError(
           ErrorCode.InvalidParams,
           'manifestUrl is required'

@@ -2966,9 +2966,11 @@ server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
             }
         }
         case 'iiif-manifest': {
+            console.error('iiif-manifest request:', JSON.stringify(request, null, 2));
             const args = request.params.arguments || {};
             const { manifestUrl, properties, structured } = args;
             if (!manifestUrl) {
+                console.error('manifestUrl not found in args:', args);
                 throw new types_js_1.McpError(types_js_1.ErrorCode.InvalidParams, 'manifestUrl is required');
             }
             try {
