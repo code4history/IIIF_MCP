@@ -3866,11 +3866,21 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   switch (request.params.name) {
     case 'iiif-search': {
-      const { searchServiceUrl, query, structured } = request.params.arguments as {
-        searchServiceUrl: string;
-        query: string;
+      const args = request.params.arguments || {};
+      const { searchServiceUrl, query, structured } = args as {
+        searchServiceUrl?: string;
+        query?: string;
         structured?: boolean;
       };
+      
+      if (!searchServiceUrl || !query) {
+        return {
+          content: [{
+            type: "text",
+            text: "Error: searchServiceUrl and query are required parameters"
+          }]
+        };
+      }
 
       if (!searchServiceUrl || !query) {
         throw new McpError(
@@ -3912,8 +3922,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
     case 'iiif-manifest': {
-      const { manifestUrl, properties, structured } = request.params.arguments as {
-        manifestUrl: string;
+      const args = request.params.arguments || {};
+      const { manifestUrl, properties, structured } = args as {
+        manifestUrl?: string;
         properties?: string[];
         structured?: boolean;
       };
@@ -3958,8 +3969,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
     case 'iiif-image': {
-      const { imageUrl, region, size, rotation, quality, format, info, structured } = request.params.arguments as {
-        imageUrl: string;
+      const args = request.params.arguments || {};
+      const { imageUrl, region, size, rotation, quality, format, info, structured } = args as {
+        imageUrl?: string;
         region?: string;
         size?: string;
         rotation?: string;
@@ -4058,8 +4070,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
     case 'iiif-collection': {
-      const { collectionUrl, includeItems, structured } = request.params.arguments as {
-        collectionUrl: string;
+      const args = request.params.arguments || {};
+      const { collectionUrl, includeItems, structured } = args as {
+        collectionUrl?: string;
         includeItems?: boolean;
         structured?: boolean;
       };
@@ -4104,8 +4117,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
     case 'iiif-annotation': {
-      const { source, language, groupByCanvas, includeNonText, structured } = request.params.arguments as {
-        source: string;
+      const args = request.params.arguments || {};
+      const { source, language, groupByCanvas, includeNonText, structured } = args as {
+        source?: string;
         language?: string;
         groupByCanvas?: boolean;
         includeNonText?: boolean;
@@ -4186,7 +4200,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
     case 'iiif-activity': {
-      const { activityStreamUrl, pageUrl, structured } = request.params.arguments as {
+      const args = request.params.arguments || {};
+      const { activityStreamUrl, pageUrl, structured } = args as {
         activityStreamUrl?: string;
         pageUrl?: string;
         structured?: boolean;
@@ -4240,8 +4255,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
     case 'iiif-av': {
-      const { manifestUrl, includeRanges, structured } = request.params.arguments as {
-        manifestUrl: string;
+      const args = request.params.arguments || {};
+      const { manifestUrl, includeRanges, structured } = args as {
+        manifestUrl?: string;
         includeRanges?: boolean;
         structured?: boolean;
       };
@@ -4286,9 +4302,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
     case 'iiif-auth': {
-      const { action, resourceUrl, username, password, token, sessionId, interactive, structured } = request.params.arguments as {
-        action: 'info' | 'authenticate' | 'probe' | 'logout' | 'get-protected';
-        resourceUrl: string;
+      const args = request.params.arguments || {};
+      const { action, resourceUrl, username, password, token, sessionId, interactive, structured } = args as {
+        action?: 'info' | 'authenticate' | 'probe' | 'logout' | 'get-protected';
+        resourceUrl?: string;
         username?: string;
         password?: string;
         token?: string;

@@ -2923,7 +2923,16 @@ server.setRequestHandler(types_js_1.ListToolsRequestSchema, async () => {
 server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
     switch (request.params.name) {
         case 'iiif-search': {
-            const { searchServiceUrl, query, structured } = request.params.arguments;
+            const args = request.params.arguments || {};
+            const { searchServiceUrl, query, structured } = args;
+            if (!searchServiceUrl || !query) {
+                return {
+                    content: [{
+                            type: "text",
+                            text: "Error: searchServiceUrl and query are required parameters"
+                        }]
+                };
+            }
             if (!searchServiceUrl || !query) {
                 throw new types_js_1.McpError(types_js_1.ErrorCode.InvalidParams, 'Both searchServiceUrl and query are required');
             }
@@ -2957,7 +2966,8 @@ server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
             }
         }
         case 'iiif-manifest': {
-            const { manifestUrl, properties, structured } = request.params.arguments;
+            const args = request.params.arguments || {};
+            const { manifestUrl, properties, structured } = args;
             if (!manifestUrl) {
                 throw new types_js_1.McpError(types_js_1.ErrorCode.InvalidParams, 'manifestUrl is required');
             }
@@ -2991,7 +3001,8 @@ server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
             }
         }
         case 'iiif-image': {
-            const { imageUrl, region, size, rotation, quality, format, info, structured } = request.params.arguments;
+            const args = request.params.arguments || {};
+            const { imageUrl, region, size, rotation, quality, format, info, structured } = args;
             if (!imageUrl) {
                 throw new types_js_1.McpError(types_js_1.ErrorCode.InvalidParams, 'imageUrl is required');
             }
@@ -3071,7 +3082,8 @@ server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
             }
         }
         case 'iiif-collection': {
-            const { collectionUrl, includeItems, structured } = request.params.arguments;
+            const args = request.params.arguments || {};
+            const { collectionUrl, includeItems, structured } = args;
             if (!collectionUrl) {
                 throw new types_js_1.McpError(types_js_1.ErrorCode.InvalidParams, 'collectionUrl is required');
             }
@@ -3105,7 +3117,8 @@ server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
             }
         }
         case 'iiif-annotation': {
-            const { source, language, groupByCanvas, includeNonText, structured } = request.params.arguments;
+            const args = request.params.arguments || {};
+            const { source, language, groupByCanvas, includeNonText, structured } = args;
             if (!source) {
                 throw new types_js_1.McpError(types_js_1.ErrorCode.InvalidParams, 'source is required');
             }
@@ -3169,7 +3182,8 @@ server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
             }
         }
         case 'iiif-activity': {
-            const { activityStreamUrl, pageUrl, structured } = request.params.arguments;
+            const args = request.params.arguments || {};
+            const { activityStreamUrl, pageUrl, structured } = args;
             if (!activityStreamUrl && !pageUrl) {
                 throw new types_js_1.McpError(types_js_1.ErrorCode.InvalidParams, 'Either activityStreamUrl or pageUrl is required');
             }
@@ -3211,7 +3225,8 @@ server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
             }
         }
         case 'iiif-av': {
-            const { manifestUrl, includeRanges, structured } = request.params.arguments;
+            const args = request.params.arguments || {};
+            const { manifestUrl, includeRanges, structured } = args;
             if (!manifestUrl) {
                 throw new types_js_1.McpError(types_js_1.ErrorCode.InvalidParams, 'manifestUrl is required');
             }
@@ -3245,7 +3260,8 @@ server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
             }
         }
         case 'iiif-auth': {
-            const { action, resourceUrl, username, password, token, sessionId, interactive, structured } = request.params.arguments;
+            const args = request.params.arguments || {};
+            const { action, resourceUrl, username, password, token, sessionId, interactive, structured } = args;
             if (!resourceUrl) {
                 throw new types_js_1.McpError(types_js_1.ErrorCode.InvalidParams, 'resourceUrl is required');
             }
