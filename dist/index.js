@@ -2666,7 +2666,7 @@ class IIIFAuthClient {
 exports.IIIFAuthClient = IIIFAuthClient;
 const server = new index_js_1.Server({
     name: 'iiif-mcp',
-    version: '1.0.0',
+    version: '1.0.1',
 }, {
     capabilities: {
         tools: {},

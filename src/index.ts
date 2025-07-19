@@ -3604,7 +3604,7 @@ export class IIIFAuthClient {
 const server = new Server(
   {
     name: 'iiif-mcp',
-    version: '1.0.0',
+    version: '1.0.1',
   },
   {
     capabilities: {
