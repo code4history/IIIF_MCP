@@ -4,6 +4,10 @@ node_modules/
 .env
 .DS_Store
 
+# Bundle artifacts
+iiif-mcp-bundle.js
+meta.json
+
 # Playwright E2E test artifacts
 playwright-report/
 test-results/

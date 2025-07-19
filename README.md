@@ -1,6 +1,13 @@
-# IIIF MCP Server
+# IIIF MCP Server v1.1.0
 
 MCP (Model Context Protocol) server for IIIF (International Image Interoperability Framework) integration.
+
+## What's New in v1.1.0
+
+- **iiif-image-fetch**: Fetch actual IIIF image data with size constraints and region support
+- **iiif-manifest-canvases**: List all canvases within a manifest with filtering options
+- **iiif-canvas-info**: Get detailed information about specific canvases
+- **Single-file bundling**: New distribution option using esbuild for npm-free deployment
 
 ## Implementation Status
 
@@ -20,6 +27,18 @@ MCP (Model Context Protocol) server for IIIF (International Image Interoperabili
   - ✅ Parameter validation (region, size, rotation, quality, format)
   - ✅ Image info retrieval with v2/v3 support
   - ✅ Comprehensive error handling
+
+### Extended Features
+
+#### Image Data Operations (v1.1.0)
+- [x] **Fetch Image Data**: Retrieve actual image content as Base64
+  - ✅ Full IIIF Image API parameter support
+  - ✅ Automatic size constraints (max 1500px, 1M pixels)
+  - ✅ Region extraction with percentage coordinates
+- [x] **Canvas Navigation**: Enhanced manifest exploration
+  - ✅ List all canvases with filtering options
+  - ✅ Detailed canvas information retrieval
+  - ✅ Support for multi-image canvases
 
 ### Extended Features (Planned)
 
@@ -105,9 +124,16 @@ MCP (Model Context Protocol) server for IIIF (International Image Interoperabili
 
 ## Installation
 
+### Standard Installation
 ```bash
 npm install
 npm run build
+```
+
+### Single-file Bundle (v1.1.0+)
+```bash
+npm run bundle
+# Creates iiif-mcp-bundle.js - no npm install needed for deployment
 ```
 
 ## Usage
@@ -116,12 +142,25 @@ npm run build
 
 Add to your MCP client configuration:
 
+#### Standard Installation
 ```json
 {
   "mcpServers": {
     "iiif": {
       "command": "node",
       "args": ["/path/to/mcp_iiif/dist/index.js"]
+    }
+  }
+}
+```
+
+#### Single-file Bundle (v1.1.0+)
+```json
+{
+  "mcpServers": {
+    "iiif": {
+      "command": "node",
+      "args": ["/path/to/iiif-mcp-bundle.js"]
     }
   }
 }
@@ -167,6 +206,93 @@ const downloadResult = await downloadServer.callTool('download_image', {
   filename: imageData.metadata.suggested_filename
 });
 ```
+
+## Available Tools
+
+### ✅ iiif-image-fetch (v1.1.0)
+
+Fetch actual IIIF image data with automatic size constraints.
+
+**Parameters:**
+- `imageUrl` (string, required): Image API base URL (e.g., "https://example.org/iiif/image123")
+- `region` (string, optional): Image region - "full" (default), "square", "x,y,w,h", or "pct:x,y,w,h"
+- `size` (string, optional): Image size - "max" (default), "w,", ",h", "pct:n", "w,h", or "!w,h"
+- `rotation` (string, optional): Rotation - "0" (default) to "359", optionally prefixed with "!" for mirroring
+- `quality` (string, optional): Image quality - "default", "color", "gray", or "bitonal"
+- `format` (string, optional): Output format - "jpg" (default), "png", "webp", "tif", "gif", or "pdf"
+- `maxDimension` (number, optional): Maximum dimension constraint (default: 1500)
+- `maxPixels` (number, optional): Maximum total pixels (default: 1000000)
+
+**Example:**
+```json
+{
+  "tool": "iiif-image-fetch",
+  "arguments": {
+    "imageUrl": "https://iiif.lib.ncsu.edu/iiif/technician-basketballpreview-1997-11-10_0001",
+    "region": "pct:25,25,50,50",
+    "size": "800,",
+    "format": "png"
+  }
+}
+```
+
+**Response:**
+Returns image data as Base64-encoded blob with MIME type and original URL.
+
+### ✅ iiif-manifest-canvases (v1.1.0)
+
+List all canvases within a IIIF manifest.
+
+**Parameters:**
+- `manifestUrl` (string, required): The URL of the IIIF manifest
+- `filter` (object, optional): Filtering options
+  - `hasImage` (boolean): Only include canvases with images
+  - `hasAnnotation` (boolean): Only include canvases with annotations
+  - `labelPattern` (string): Regular expression to filter by label
+- `includeMetadata` (boolean, optional): Include canvas metadata (default: false)
+- `includeThumbnail` (boolean, optional): Include thumbnail URLs (default: true)
+- `structured` (boolean, optional): Return structured JSON data
+
+**Example:**
+```json
+{
+  "tool": "iiif-manifest-canvases",
+  "arguments": {
+    "manifestUrl": "https://d.lib.ncsu.edu/collections/catalog/technician-basketballpreview-1997-11-10/manifest.json",
+    "filter": {
+      "hasAnnotation": true
+    }
+  }
+}
+```
+
+### ✅ iiif-canvas-info (v1.1.0)
+
+Get detailed information about a specific canvas.
+
+**Parameters:**
+- `manifestUrl` (string, required): The URL of the IIIF manifest
+- `canvasId` (string, optional): Canvas ID (if omitted, returns first canvas)
+- `canvasIndex` (number, optional): Canvas index (0-based)
+- `includeAnnotations` (boolean, optional): Include annotation details (default: true)
+- `includeImageInfo` (boolean, optional): Fetch Image API info.json (default: false)
+- `includeStructures` (boolean, optional): Include structural information (default: false)
+- `structured` (boolean, optional): Return structured JSON data
+
+**Example:**
+```json
+{
+  "tool": "iiif-canvas-info",
+  "arguments": {
+    "manifestUrl": "https://d.lib.ncsu.edu/collections/catalog/technician-basketballpreview-1997-11-10/manifest.json",
+    "canvasIndex": 0,
+    "includeImageInfo": true
+  }
+}
+```
+
+**Response:**
+Returns detailed canvas information including dimensions, associated images, annotations, and metadata.
 
 ## Available Tools
 

@@ -6,6 +6,8 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc",
+    "bundle": "npm run build && node scripts/bundle.js",
+    "bundle:analyze": "npm run bundle && npx esbuild-visualizer --metadata meta.json --open",
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
     "test": "vitest",
