@@ -1152,4 +1152,4 @@ Key areas under consideration:
 
 ## License
 
-ISC
+MIT
