@@ -295,6 +295,83 @@ class IIIFImageClient {
             tiles: info.tiles
         };
     }
+    // New method for v1.1.0 - Apply size constraints to image dimensions
+    applyImageConstraints(width, height, maxDimension = 1500, maxPixels = 1000000) {
+        let scale = 1;
+        // Check dimension constraint
+        if (width > maxDimension || height > maxDimension) {
+            scale = maxDimension / Math.max(width, height);
+        }
+        // Check pixel constraint
+        const pixels = width * height * scale * scale;
+        if (pixels > maxPixels) {
+            scale *= Math.sqrt(maxPixels / pixels);
+        }
+        return {
+            width: Math.floor(width * scale),
+            height: Math.floor(height * scale)
+        };
+    }
+    // New method for v1.1.0 - Fetch actual image data
+    async fetchImageData(imageUrl, options = {}) {
+        // First, get image info to determine dimensions
+        const infoUrl = imageUrl.endsWith('/info.json') ? imageUrl : `${imageUrl}/info.json`;
+        let imageInfo;
+        try {
+            imageInfo = await this.getImageInfo(infoUrl);
+        }
+        catch (error) {
+            // If info.json fails, proceed without dimension checks
+            console.error('Warning: Could not fetch info.json, proceeding without size validation');
+        }
+        // Apply size constraints if we have image info
+        let finalSize = options.size || 'max';
+        if (imageInfo && options.maxDimension !== undefined || options.maxPixels !== undefined) {
+            const originalWidth = imageInfo.width;
+            const originalHeight = imageInfo.height;
+            if (originalWidth && originalHeight) {
+                const constrained = this.applyImageConstraints(originalWidth, originalHeight, options.maxDimension, options.maxPixels);
+                // If constraints apply, adjust the size parameter
+                if (constrained.width < originalWidth || constrained.height < originalHeight) {
+                    finalSize = `${constrained.width},`;
+                }
+            }
+        }
+        // Build the image URL with parameters
+        const imageParams = {
+            ...options,
+            size: finalSize
+        };
+        delete imageParams.maxDimension;
+        delete imageParams.maxPixels;
+        const fullImageUrl = this.buildImageUrl(imageUrl.replace('/info.json', ''), imageParams);
+        // Fetch the actual image data
+        try {
+            const response = await axios_1.default.get(fullImageUrl, {
+                responseType: 'arraybuffer',
+                timeout: 30000, // 30 seconds timeout for image download
+                maxContentLength: 50 * 1024 * 1024, // 50MB max
+                headers: {
+                    'Accept': 'image/*'
+                }
+            });
+            // Convert to base64
+            const base64 = Buffer.from(response.data).toString('base64');
+            // Determine MIME type
+            const contentType = response.headers['content-type'] || `image/${options.format || 'jpg'}`;
+            return {
+                uri: fullImageUrl,
+                mimeType: contentType,
+                blob: base64
+            };
+        }
+        catch (error) {
+            if (axios_1.default.isAxiosError(error)) {
+                throw new Error(`Failed to fetch image data: ${error.message}`);
+            }
+            throw error;
+        }
+    }
 }
 exports.IIIFImageClient = IIIFImageClient;
 class IIIFManifestClient {
@@ -515,6 +592,282 @@ class IIIFManifestClient {
             metadata,
             structures
         };
+    }
+    // Helper method to get first label value
+    getFirstLabel(label) {
+        return this.getFirstValue(label) || 'Untitled';
+    }
+    // New method for v1.1.0 - Get all canvases with filtering
+    async getCanvases(manifest, options = {}) {
+        const results = [];
+        // Get canvases based on version
+        let canvases = [];
+        // v3 format
+        if (manifest.items) {
+            canvases = manifest.items;
+        }
+        // v2 format
+        else if (manifest.sequences && manifest.sequences.length > 0 && manifest.sequences[0].canvases) {
+            canvases = manifest.sequences[0].canvases;
+        }
+        for (const canvas of canvases) {
+            const canvasId = canvas.id || canvas['@id'] || '';
+            const canvasLabel = this.getFirstValue(canvas.label) || 'Untitled Canvas';
+            // Apply label pattern filter if specified
+            if (options.filter?.labelPattern) {
+                const pattern = new RegExp(options.filter.labelPattern);
+                if (!pattern.test(canvasLabel)) {
+                    continue;
+                }
+            }
+            // Extract images
+            const imageUrls = [];
+            let images = [];
+            // v3 format
+            if (canvas.items) {
+                for (const page of canvas.items) {
+                    if (page.items) {
+                        images = images.concat(page.items.filter((item) => item.motivation === 'painting' && item.body?.type === 'Image'));
+                    }
+                }
+            }
+            // v2 format
+            else if (canvas.images) {
+                images = canvas.images.filter((img) => img.motivation === 'painting' || img['@type'] === 'oa:Annotation');
+            }
+            images.forEach(img => {
+                const imageUrl = img.body?.id || img.body?.['@id'] || img.resource?.['@id'] || img.resource?.id;
+                if (imageUrl) {
+                    imageUrls.push(imageUrl);
+                }
+            });
+            // Apply image filter
+            if (options.filter?.hasImage && imageUrls.length === 0) {
+                continue;
+            }
+            // Count and categorize annotations
+            let annotationCount = 0;
+            const annotationTypes = new Set();
+            // v3 format
+            if (canvas.annotations) {
+                for (const annoPage of canvas.annotations) {
+                    if (annoPage.items) {
+                        annotationCount += annoPage.items.length;
+                        annoPage.items.forEach((anno) => {
+                            if (anno.motivation) {
+                                annotationTypes.add(anno.motivation);
+                            }
+                        });
+                    }
+                }
+            }
+            // v2 format
+            else if (canvas.otherContent) {
+                annotationCount = canvas.otherContent.length;
+                // Would need to fetch annotation lists to get motivations
+                annotationTypes.add('annotations');
+            }
+            // Apply annotation filter
+            if (options.filter?.hasAnnotation && annotationCount === 0) {
+                continue;
+            }
+            // Extract thumbnail
+            let thumbnail;
+            if (options.includeThumbnail !== false && canvas.thumbnail) {
+                const thumbs = Array.isArray(canvas.thumbnail) ? canvas.thumbnail : [canvas.thumbnail];
+                if (thumbs.length > 0) {
+                    thumbnail = thumbs[0].id || thumbs[0]['@id'];
+                }
+            }
+            // Extract metadata if requested
+            let metadata;
+            if (options.includeMetadata && canvas.metadata) {
+                metadata = {};
+                canvas.metadata.forEach((item) => {
+                    const { label, value } = this.getMetadataValue(item);
+                    metadata[label] = value;
+                });
+            }
+            results.push({
+                id: canvasId,
+                label: canvasLabel,
+                width: canvas.width || 0,
+                height: canvas.height || 0,
+                images: imageUrls,
+                imageCount: imageUrls.length,
+                thumbnail,
+                metadata,
+                annotationCount,
+                annotationTypes: Array.from(annotationTypes)
+            });
+        }
+        return results;
+    }
+    // New method for v1.1.0 - Get detailed canvas information
+    async getCanvasInfo(manifest, options = {}) {
+        // Get canvases
+        let canvases = [];
+        // v3 format
+        if (manifest.items) {
+            canvases = manifest.items;
+        }
+        // v2 format
+        else if (manifest.sequences && manifest.sequences.length > 0 && manifest.sequences[0].canvases) {
+            canvases = manifest.sequences[0].canvases;
+        }
+        // Find the requested canvas
+        let canvas;
+        if (options.canvasId) {
+            canvas = canvases.find(c => (c.id || c['@id']) === options.canvasId);
+        }
+        else if (options.canvasIndex !== undefined) {
+            canvas = canvases[options.canvasIndex];
+        }
+        else {
+            canvas = canvases[0]; // Default to first canvas
+        }
+        if (!canvas) {
+            throw new Error('Canvas not found');
+        }
+        // Build detailed info
+        const canvasInfo = {
+            id: canvas.id || canvas['@id'] || '',
+            label: this.getFirstValue(canvas.label) || 'Untitled Canvas',
+            width: canvas.width || 0,
+            height: canvas.height || 0,
+            images: [],
+            annotations: options.includeAnnotations ? [] : undefined,
+            thumbnail: undefined,
+            metadata: canvas.metadata ? {} : undefined,
+            structures: options.includeStructures ? [] : undefined
+        };
+        // Extract images with details
+        let images = [];
+        // v3 format
+        if (canvas.items) {
+            for (const page of canvas.items) {
+                if (page.items) {
+                    images = images.concat(page.items.filter((item) => item.motivation === 'painting' && item.body?.type === 'Image'));
+                }
+            }
+        }
+        // v2 format
+        else if (canvas.images) {
+            images = canvas.images.filter((img) => img.motivation === 'painting' || img['@type'] === 'oa:Annotation');
+        }
+        for (const img of images) {
+            const imageInfo = {
+                id: img.id || img['@id'] || '',
+                motivation: img.motivation || 'painting',
+                body: {
+                    id: img.body?.id || img.body?.['@id'] || img.resource?.['@id'] || img.resource?.id || '',
+                    type: img.body?.type || img.resource?.['@type'] || 'Image',
+                    format: img.body?.format || img.resource?.format || 'image/jpeg',
+                    width: img.body?.width || img.resource?.width,
+                    height: img.body?.height || img.resource?.height,
+                    service: undefined
+                },
+                target: img.target || canvas.id || canvas['@id'] || ''
+            };
+            // Extract IIIF service info
+            const service = img.body?.service || img.resource?.service;
+            if (service) {
+                const services = Array.isArray(service) ? service : [service];
+                const imageService = services.find((s) => s['@context']?.includes('iiif.io/api/image') ||
+                    s.type?.includes('ImageService') ||
+                    s['@type']?.includes('ImageService'));
+                if (imageService) {
+                    imageInfo.body.service = {
+                        id: imageService.id || imageService['@id'] || '',
+                        type: imageService.type || imageService['@type'] || 'ImageService2',
+                        profile: imageService.profile || 'level2'
+                    };
+                    // Optionally fetch info.json
+                    if (options.includeImageInfo && imageInfo.body.service.id) {
+                        try {
+                            const imageClient = new IIIFImageClient();
+                            const info = await imageClient.getImageInfo(`${imageInfo.body.service.id}/info.json`);
+                            imageInfo.body.service.info = info;
+                        }
+                        catch (error) {
+                            console.error('Failed to fetch image info:', error);
+                        }
+                    }
+                }
+            }
+            canvasInfo.images.push(imageInfo);
+        }
+        // Extract annotations if requested
+        if (options.includeAnnotations) {
+            // v3 format
+            if (canvas.annotations) {
+                for (const annoPage of canvas.annotations) {
+                    if (annoPage.items) {
+                        for (const anno of annoPage.items) {
+                            canvasInfo.annotations.push({
+                                id: anno.id || '',
+                                type: anno.type || 'Annotation',
+                                motivation: anno.motivation || '',
+                                body: {
+                                    type: anno.body?.type || '',
+                                    value: anno.body?.value || '',
+                                    format: anno.body?.format,
+                                    language: anno.body?.language
+                                },
+                                target: anno.target || ''
+                            });
+                        }
+                    }
+                }
+            }
+            // v2 format - would need to fetch annotation lists
+            else if (canvas.otherContent) {
+                // For v2, we'd need to fetch each annotation list
+                // For now, just indicate they exist
+                canvas.otherContent.forEach((ref) => {
+                    canvasInfo.annotations.push({
+                        id: ref['@id'] || '',
+                        type: 'AnnotationList',
+                        note: 'Annotation list reference - fetch separately for details'
+                    });
+                });
+            }
+        }
+        // Extract thumbnail
+        if (canvas.thumbnail) {
+            const thumbs = Array.isArray(canvas.thumbnail) ? canvas.thumbnail : [canvas.thumbnail];
+            if (thumbs.length > 0) {
+                canvasInfo.thumbnail = {
+                    id: thumbs[0].id || thumbs[0]['@id'] || '',
+                    type: thumbs[0].type || thumbs[0]['@type'] || 'Image',
+                    format: thumbs[0].format || 'image/jpeg'
+                };
+            }
+        }
+        // Extract metadata
+        if (canvas.metadata) {
+            canvas.metadata.forEach((item) => {
+                const { label, value } = this.getMetadataValue(item);
+                canvasInfo.metadata[label] = value;
+            });
+        }
+        // Find structures that reference this canvas
+        if (options.includeStructures && manifest.structures) {
+            const canvasId = canvasInfo.id;
+            manifest.structures.forEach((struct) => {
+                const items = struct.items || struct.canvases || [];
+                if (items.some((item) => (typeof item === 'string' && item.includes(canvasId)) ||
+                    (item.id && item.id.includes(canvasId)) ||
+                    (item['@id'] && item['@id'].includes(canvasId)))) {
+                    canvasInfo.structures.push({
+                        id: struct.id || struct['@id'] || '',
+                        type: struct.type || struct['@type'] || 'Range',
+                        label: this.getFirstValue(struct.label) || 'Untitled Structure'
+                    });
+                }
+            });
+        }
+        return canvasInfo;
     }
 }
 exports.IIIFManifestClient = IIIFManifestClient;
@@ -2666,7 +3019,7 @@ class IIIFAuthClient {
 exports.IIIFAuthClient = IIIFAuthClient;
 const server = new index_js_1.Server({
     name: 'iiif-mcp',
-    version: '1.0.1',
+    version: '1.1.0',
 }, {
     capabilities: {
         tools: {},
@@ -2875,20 +3228,6 @@ server.setRequestHandler(types_js_1.ListToolsRequestSchema, async () => {
                 },
             },
             {
-                name: 'test-echo',
-                description: 'Simple test tool that echoes input',
-                inputSchema: {
-                    type: 'object',
-                    properties: {
-                        message: {
-                            type: 'string',
-                            description: 'Message to echo',
-                        },
-                    },
-                    required: [],
-                },
-            },
-            {
                 name: 'iiif-auth',
                 description: 'Authenticate with IIIF resources and access protected content',
                 inputSchema: {
@@ -2931,6 +3270,130 @@ server.setRequestHandler(types_js_1.ListToolsRequestSchema, async () => {
                     required: ['action', 'resourceUrl'],
                 },
             },
+            {
+                name: 'iiif-image-fetch',
+                description: 'Fetch actual IIIF image data with automatic size constraints',
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        imageUrl: {
+                            type: 'string',
+                            description: 'Image API base URL (e.g., "https://example.org/iiif/image123")',
+                        },
+                        region: {
+                            type: 'string',
+                            description: 'Image region - "full" (default), "square", "x,y,w,h", or "pct:x,y,w,h"',
+                        },
+                        size: {
+                            type: 'string',
+                            description: 'Image size - "max" (default), "w,", ",h", "pct:n", "w,h", or "!w,h"',
+                        },
+                        rotation: {
+                            type: 'string',
+                            description: 'Rotation - "0" (default) to "359", optionally prefixed with "!" for mirroring',
+                        },
+                        quality: {
+                            type: 'string',
+                            description: 'Image quality - "default", "color", "gray", or "bitonal"',
+                        },
+                        format: {
+                            type: 'string',
+                            description: 'Output format - "jpg" (default), "png", "webp", "tif", "gif", or "pdf"',
+                        },
+                        maxDimension: {
+                            type: 'number',
+                            description: 'Maximum dimension constraint in pixels (default: 1500)',
+                        },
+                        maxPixels: {
+                            type: 'number',
+                            description: 'Maximum total pixels (default: 1000000)',
+                        },
+                    },
+                    required: ['imageUrl'],
+                },
+            },
+            {
+                name: 'iiif-manifest-canvases',
+                description: 'List all canvases within a IIIF manifest with filtering options',
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        manifestUrl: {
+                            type: 'string',
+                            description: 'The URL of the IIIF manifest',
+                        },
+                        filter: {
+                            type: 'object',
+                            properties: {
+                                hasImage: {
+                                    type: 'boolean',
+                                    description: 'Only include canvases with images',
+                                },
+                                hasAnnotation: {
+                                    type: 'boolean',
+                                    description: 'Only include canvases with annotations',
+                                },
+                                labelPattern: {
+                                    type: 'string',
+                                    description: 'Regular expression to filter by label',
+                                },
+                            },
+                            description: 'Filtering options for canvases',
+                        },
+                        includeMetadata: {
+                            type: 'boolean',
+                            description: 'Include canvas metadata (default: false)',
+                        },
+                        includeThumbnail: {
+                            type: 'boolean',
+                            description: 'Include thumbnail URLs (default: true)',
+                        },
+                        structured: {
+                            type: 'boolean',
+                            description: 'Return structured JSON data instead of formatted text',
+                        },
+                    },
+                    required: ['manifestUrl'],
+                },
+            },
+            {
+                name: 'iiif-canvas-info',
+                description: 'Get detailed information about a specific canvas',
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        manifestUrl: {
+                            type: 'string',
+                            description: 'The URL of the IIIF manifest',
+                        },
+                        canvasId: {
+                            type: 'string',
+                            description: 'Canvas ID (if omitted, returns first canvas)',
+                        },
+                        canvasIndex: {
+                            type: 'number',
+                            description: 'Canvas index (0-based)',
+                        },
+                        includeAnnotations: {
+                            type: 'boolean',
+                            description: 'Include annotation details (default: true)',
+                        },
+                        includeImageInfo: {
+                            type: 'boolean',
+                            description: 'Fetch Image API info.json (default: false)',
+                        },
+                        includeStructures: {
+                            type: 'boolean',
+                            description: 'Include structural information (default: false)',
+                        },
+                        structured: {
+                            type: 'boolean',
+                            description: 'Return structured JSON data instead of formatted text',
+                        },
+                    },
+                    required: ['manifestUrl'],
+                },
+            },
         ],
     };
 });
@@ -2938,15 +3401,6 @@ server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
     // Get arguments from the standard location
     const args = request.params.arguments || {};
     switch (request.params.name) {
-        case 'test-echo': {
-            const { message } = args;
-            return {
-                content: [{
-                        type: "text",
-                        text: `Echo test - Received arguments: ${JSON.stringify(args)}. Message: ${message || 'no message provided'}`
-                    }]
-            };
-        }
         case 'iiif-search': {
             const { searchServiceUrl, query, structured } = args;
             if (!searchServiceUrl || !query) {
@@ -3452,6 +3906,188 @@ server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
             }
             catch (error) {
                 throw new types_js_1.McpError(types_js_1.ErrorCode.InternalError, `Authentication operation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            }
+        }
+        case 'iiif-image-fetch': {
+            const { imageUrl, region, size, rotation, quality, format, maxDimension, maxPixels } = args;
+            if (!imageUrl) {
+                throw new types_js_1.McpError(types_js_1.ErrorCode.InvalidParams, 'imageUrl is required');
+            }
+            try {
+                // Validate parameters
+                const validationResult = imageClient.validateParameters({ region, size, rotation, quality, format });
+                if (!validationResult.valid) {
+                    throw new types_js_1.McpError(types_js_1.ErrorCode.InvalidParams, `Invalid parameters: ${validationResult.errors.join(', ')}`);
+                }
+                // Fetch the image data
+                const imageData = await imageClient.fetchImageData(imageUrl, {
+                    region,
+                    size,
+                    rotation,
+                    quality,
+                    format,
+                    maxDimension,
+                    maxPixels
+                });
+                return {
+                    content: [
+                        {
+                            type: 'resource',
+                            resource: imageData
+                        }
+                    ],
+                };
+            }
+            catch (error) {
+                throw new types_js_1.McpError(types_js_1.ErrorCode.InternalError, `Failed to fetch image: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            }
+        }
+        case 'iiif-manifest-canvases': {
+            const { manifestUrl, filter, includeMetadata, includeThumbnail, structured } = args;
+            if (!manifestUrl) {
+                throw new types_js_1.McpError(types_js_1.ErrorCode.InvalidParams, 'manifestUrl is required');
+            }
+            try {
+                const manifest = await manifestClient.getManifest(manifestUrl);
+                const canvases = await manifestClient.getCanvases(manifest, {
+                    filter,
+                    includeMetadata: includeMetadata ?? false,
+                    includeThumbnail: includeThumbnail ?? true
+                });
+                if (structured) {
+                    return {
+                        content: [
+                            {
+                                type: 'text',
+                                text: JSON.stringify({
+                                    manifestId: manifest.id || manifest['@id'],
+                                    manifestLabel: manifestClient.getFirstLabel(manifest.label),
+                                    totalCanvases: canvases.length,
+                                    canvases
+                                }, null, 2)
+                            }
+                        ],
+                    };
+                }
+                // Format as markdown
+                let output = `## Canvases in Manifest\n\n`;
+                output += `**Manifest**: ${manifestClient.getFirstLabel(manifest.label)}\n`;
+                output += `**Total Canvases**: ${canvases.length}\n\n`;
+                canvases.forEach((canvas, index) => {
+                    output += `### ${index + 1}. ${canvas.label}\n`;
+                    output += `- **ID**: ${canvas.id}\n`;
+                    output += `- **Dimensions**: ${canvas.width} × ${canvas.height}\n`;
+                    output += `- **Images**: ${canvas.imageCount}\n`;
+                    if (canvas.annotationCount > 0) {
+                        output += `- **Annotations**: ${canvas.annotationCount}`;
+                        if (canvas.annotationTypes.length > 0) {
+                            output += ` (${canvas.annotationTypes.join(', ')})`;
+                        }
+                        output += '\n';
+                    }
+                    if (canvas.thumbnail) {
+                        output += `- **Thumbnail**: ${canvas.thumbnail}\n`;
+                    }
+                    if (canvas.metadata && Object.keys(canvas.metadata).length > 0) {
+                        output += `- **Metadata**: ${JSON.stringify(canvas.metadata)}\n`;
+                    }
+                    output += '\n';
+                });
+                return {
+                    content: [
+                        {
+                            type: 'text',
+                            text: output
+                        }
+                    ],
+                };
+            }
+            catch (error) {
+                throw new types_js_1.McpError(types_js_1.ErrorCode.InternalError, `Failed to get canvases: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            }
+        }
+        case 'iiif-canvas-info': {
+            const { manifestUrl, canvasId, canvasIndex, includeAnnotations, includeImageInfo, includeStructures, structured } = args;
+            if (!manifestUrl) {
+                throw new types_js_1.McpError(types_js_1.ErrorCode.InvalidParams, 'manifestUrl is required');
+            }
+            try {
+                const manifest = await manifestClient.getManifest(manifestUrl);
+                const canvasInfo = await manifestClient.getCanvasInfo(manifest, {
+                    canvasId,
+                    canvasIndex,
+                    includeAnnotations: includeAnnotations ?? true,
+                    includeImageInfo: includeImageInfo ?? false,
+                    includeStructures: includeStructures ?? false
+                });
+                if (structured) {
+                    return {
+                        content: [
+                            {
+                                type: 'text',
+                                text: JSON.stringify(canvasInfo, null, 2)
+                            }
+                        ],
+                    };
+                }
+                // Format as markdown
+                let output = `## Canvas Information\n\n`;
+                output += `**ID**: ${canvasInfo.id}\n`;
+                output += `**Label**: ${canvasInfo.label}\n`;
+                output += `**Dimensions**: ${canvasInfo.width} × ${canvasInfo.height}\n\n`;
+                if (canvasInfo.images.length > 0) {
+                    output += `### Images (${canvasInfo.images.length})\n\n`;
+                    canvasInfo.images.forEach((img, idx) => {
+                        output += `**Image ${idx + 1}**\n`;
+                        output += `- Motivation: ${img.motivation}\n`;
+                        output += `- URL: ${img.body.id}\n`;
+                        output += `- Format: ${img.body.format}\n`;
+                        if (img.body.width && img.body.height) {
+                            output += `- Dimensions: ${img.body.width} × ${img.body.height}\n`;
+                        }
+                        if (img.body.service) {
+                            output += `- IIIF Service: ${img.body.service.id}\n`;
+                        }
+                        output += '\n';
+                    });
+                }
+                if (canvasInfo.annotations && canvasInfo.annotations.length > 0) {
+                    output += `### Annotations (${canvasInfo.annotations.length})\n\n`;
+                    canvasInfo.annotations.forEach((ann, idx) => {
+                        output += `**Annotation ${idx + 1}**\n`;
+                        output += `- Type: ${ann.type}\n`;
+                        output += `- Motivation: ${ann.motivation}\n`;
+                        if (ann.body.value) {
+                            output += `- Text: ${ann.body.value.substring(0, 100)}${ann.body.value.length > 100 ? '...' : ''}\n`;
+                        }
+                        if (ann.body.language) {
+                            output += `- Language: ${ann.body.language}\n`;
+                        }
+                        output += '\n';
+                    });
+                }
+                if (canvasInfo.thumbnail) {
+                    output += `### Thumbnail\n`;
+                    output += `- URL: ${canvasInfo.thumbnail.id}\n`;
+                    output += `- Format: ${canvasInfo.thumbnail.format}\n\n`;
+                }
+                if (canvasInfo.metadata && Object.keys(canvasInfo.metadata).length > 0) {
+                    output += `### Metadata\n`;
+                    Object.entries(canvasInfo.metadata).forEach(([key, value]) => {
+                        output += `- **${key}**: ${value}\n`;
+                    });
+                }
+                return {
+                    content: [
+                        {
+                            type: 'text',
+                            text: output
+                        }
+                    ],
+                };
+            }
+            catch (error) {
+                throw new types_js_1.McpError(types_js_1.ErrorCode.InternalError, `Failed to get canvas info: ${error instanceof Error ? error.message : 'Unknown error'}`);
             }
         }
         default:

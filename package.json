@@ -1,6 +1,6 @@
 {
   "name": "@c4h/iiif-mcp",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "type": "commonjs",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -41,6 +41,7 @@
     "@types/express": "^5.0.3",
     "@types/node": "^24.0.14",
     "@vitest/ui": "^3.2.4",
+    "esbuild": "^0.25.7",
     "eslint": "^9.31.0",
     "eslint-config-prettier": "^9.1.2",
     "express": "^5.1.0",

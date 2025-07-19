@@ -532,6 +532,23 @@ export declare class IIIFImageClient {
         format?: string;
     }): StructuredImageResult;
     getStructuredImageInfo(info: any): StructuredImageInfo;
+    applyImageConstraints(width: number, height: number, maxDimension?: number, maxPixels?: number): {
+        width: number;
+        height: number;
+    };
+    fetchImageData(imageUrl: string, options?: {
+        region?: string;
+        size?: string;
+        rotation?: string;
+        quality?: string;
+        format?: string;
+        maxDimension?: number;
+        maxPixels?: number;
+    }): Promise<{
+        uri: string;
+        mimeType: string;
+        blob: string;
+    }>;
 }
 export declare class IIIFManifestClient {
     getManifest(manifestUrl: string): Promise<IIIFManifest>;
@@ -539,6 +556,34 @@ export declare class IIIFManifestClient {
     private getMetadataValue;
     formatManifest(manifest: IIIFManifest, properties?: string[]): string;
     getStructuredManifest(manifest: IIIFManifest): StructuredManifestResult;
+    getFirstLabel(label?: IIIFLabel): string;
+    getCanvases(manifest: IIIFManifest, options?: {
+        filter?: {
+            hasImage?: boolean;
+            hasAnnotation?: boolean;
+            labelPattern?: string;
+        };
+        includeMetadata?: boolean;
+        includeThumbnail?: boolean;
+    }): Promise<Array<{
+        id: string;
+        label: string;
+        width: number;
+        height: number;
+        images: string[];
+        imageCount: number;
+        thumbnail?: string;
+        metadata?: Record<string, any>;
+        annotationCount: number;
+        annotationTypes: string[];
+    }>>;
+    getCanvasInfo(manifest: IIIFManifest, options?: {
+        canvasId?: string;
+        canvasIndex?: number;
+        includeAnnotations?: boolean;
+        includeImageInfo?: boolean;
+        includeStructures?: boolean;
+    }): Promise<any>;
 }
 export declare class IIIFCollectionClient {
     getCollection(collectionUrl: string): Promise<IIIFCollection>;

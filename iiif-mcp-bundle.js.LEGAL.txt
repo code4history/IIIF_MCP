@@ -1,0 +1,23 @@
+Bundled license information:
+
+uri-js/dist/es5/uri.all.js:
+  /** @license URI.js v4.4.1 (c) 2011 Gary Court. License: http://github.com/garycourt/uri-js */
+
+mime-db/index.js:
+  /*!
+   * mime-db
+   * Copyright(c) 2014 Jonathan Ong
+   * Copyright(c) 2015-2022 Douglas Christopher Wilson
+   * MIT Licensed
+   */
+
+mime-types/index.js:
+  /*!
+   * mime-types
+   * Copyright(c) 2014 Jonathan Ong
+   * Copyright(c) 2015 Douglas Christopher Wilson
+   * MIT Licensed
+   */
+
+axios/dist/node/axios.cjs:
+  /*! Axios v1.10.0 Copyright (c) 2025 Matt Zabriskie and contributors */

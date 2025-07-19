@@ -50,8 +50,7 @@ async function bundle() {
         'process.env.NODE_ENV': '"production"'
       },
       banner: {
-        js: `#!/usr/bin/env node
-/*
+        js: `/*
  * IIIF MCP Server Bundle v1.1.0
  * (c) 2025 Code for History
  * Released under the MIT License
