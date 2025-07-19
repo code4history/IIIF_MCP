@@ -3866,8 +3866,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   switch (request.params.name) {
     case 'iiif-search': {
-      const args = request.params.arguments || {};
-      const { searchServiceUrl, query, structured } = args as {
+      const { searchServiceUrl, query, structured } = request.params as {
         searchServiceUrl?: string;
         query?: string;
         structured?: boolean;
@@ -3922,16 +3921,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
     case 'iiif-manifest': {
-      console.error('iiif-manifest request:', JSON.stringify(request, null, 2));
-      const args = request.params.arguments || {};
-      const { manifestUrl, properties, structured } = args as {
+      const { manifestUrl, properties, structured } = request.params as {
         manifestUrl?: string;
         properties?: string[];
         structured?: boolean;
       };
 
       if (!manifestUrl) {
-        console.error('manifestUrl not found in args:', args);
         throw new McpError(
           ErrorCode.InvalidParams,
           'manifestUrl is required'
@@ -3971,8 +3967,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
     case 'iiif-image': {
-      const args = request.params.arguments || {};
-      const { imageUrl, region, size, rotation, quality, format, info, structured } = args as {
+      const { imageUrl, region, size, rotation, quality, format, info, structured } = request.params as {
         imageUrl?: string;
         region?: string;
         size?: string;
@@ -4072,8 +4067,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
     case 'iiif-collection': {
-      const args = request.params.arguments || {};
-      const { collectionUrl, includeItems, structured } = args as {
+      const { collectionUrl, includeItems, structured } = request.params as {
         collectionUrl?: string;
         includeItems?: boolean;
         structured?: boolean;
@@ -4119,8 +4113,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
     case 'iiif-annotation': {
-      const args = request.params.arguments || {};
-      const { source, language, groupByCanvas, includeNonText, structured } = args as {
+      const { source, language, groupByCanvas, includeNonText, structured } = request.params as {
         source?: string;
         language?: string;
         groupByCanvas?: boolean;
@@ -4202,8 +4195,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
     case 'iiif-activity': {
-      const args = request.params.arguments || {};
-      const { activityStreamUrl, pageUrl, structured } = args as {
+      const { activityStreamUrl, pageUrl, structured } = request.params as {
         activityStreamUrl?: string;
         pageUrl?: string;
         structured?: boolean;
@@ -4257,8 +4249,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
     case 'iiif-av': {
-      const args = request.params.arguments || {};
-      const { manifestUrl, includeRanges, structured } = args as {
+      const { manifestUrl, includeRanges, structured } = request.params as {
         manifestUrl?: string;
         includeRanges?: boolean;
         structured?: boolean;
@@ -4304,8 +4295,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
     case 'iiif-auth': {
-      const args = request.params.arguments || {};
-      const { action, resourceUrl, username, password, token, sessionId, interactive, structured } = args as {
+      const { action, resourceUrl, username, password, token, sessionId, interactive, structured } = request.params as {
         action?: 'info' | 'authenticate' | 'probe' | 'logout' | 'get-protected';
         resourceUrl?: string;
         username?: string;
